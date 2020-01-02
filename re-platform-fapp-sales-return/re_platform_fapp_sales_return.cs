@@ -152,7 +152,6 @@ namespace re_platform_fapp_sales_return
                 return new BadRequestObjectResult(ex.Message);
             }
 
-
             return res != null
                 ? (ActionResult)new OkObjectResult(JsonConvert.SerializeObject(res))
                 : new BadRequestObjectResult("Please pass a name on the query string or in the request body");
