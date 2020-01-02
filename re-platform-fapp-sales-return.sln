@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29613.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "re-platform-fapp-sales-return", "re-platform-fapp-sales-return\re-platform-fapp-sales-return.csproj", "{292CAA02-C217-4276-B005-3CB2EA760DE7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{292CAA02-C217-4276-B005-3CB2EA760DE7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{292CAA02-C217-4276-B005-3CB2EA760DE7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{292CAA02-C217-4276-B005-3CB2EA760DE7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{292CAA02-C217-4276-B005-3CB2EA760DE7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1E6BA600-C0AF-4D25-929E-27AD597F8539}
+	EndGlobalSection
+EndGlobal
