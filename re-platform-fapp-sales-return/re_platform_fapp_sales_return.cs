@@ -11,11 +11,16 @@ using MySql.Data.MySqlClient;
 using System.Data;
 using System.Net.Http;
 using System.Text;
+using System.Collections.Generic;
 
 namespace re_platform_fapp_sales_return
 {
     public static class re_platform_fapp_sales_return
     {
+
+        public static string mysqlconnectionstring { get; set; }
+
+
         [FunctionName("salesreturn")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
@@ -23,29 +28,26 @@ namespace re_platform_fapp_sales_return
         {
             log.LogInformation("C# HTTP trigger function processed a request.");
 
+            mysqlconnectionstring = Environment.GetEnvironmentVariable("mysqlconnectionstring");
+
             string name = req.Query["name"];
 
             string res = string.Empty;
             //SAP_POST_SalesReturn();
 
-
             try
             {
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
 
-
                 var salesreturnrequestobj = JsonConvert.DeserializeObject<SalesReturnRequest>(requestBody);
-
-
 
                 log.LogInformation("get awb number.");
                 //fetch awb from mysql
                 string waybillid;
                 string awbnumber;
-                getawbnumber(out waybillid, out awbnumber);
+                GetAWBnumber(out waybillid, out awbnumber);
 
                 log.LogInformation("after - get awb number.");
-
 
                 SapRequest saprequest = new SapRequest();
 
@@ -56,17 +58,15 @@ namespace re_platform_fapp_sales_return
                 saprequest.SAP_SALE_ORDER_NO = salesreturnrequestobj.SAP_SALE_ORDER_NO;
                 // End sap request param
 
-
-
                 //ECOM request param
 
-                RootObject obj = new RootObject();
+                RootObject rootobj = new RootObject();
 
                 ECOMEXPRESSOBJECTS ECOMEXPRESSOBJECTS = new ECOMEXPRESSOBJECTS();
                 SHIPMENT SHIPMENT = new SHIPMENT();
                 ADDITIONALINFORMATION ADDITIONALINFORMATION = new ADDITIONALINFORMATION();
 
-                obj.ECOMEXPRESSOBJECTS = ECOMEXPRESSOBJECTS;
+                rootobj.ECOMEXPRESSOBJECTS = ECOMEXPRESSOBJECTS;
                 ECOMEXPRESSOBJECTS.SHIPMENT = SHIPMENT;
 
 
@@ -136,7 +136,7 @@ namespace re_platform_fapp_sales_return
 
 
                 log.LogInformation("ECOM_POST_ReverseManifest.");
-                res = ECOM_POST_ReverseManifest(obj);
+                res = ECOM_POST_ReverseManifest(rootobj);
                 log.LogInformation(" after ECOM_POST_ReverseManifest.");
 
 
@@ -158,74 +158,55 @@ namespace re_platform_fapp_sales_return
         }
 
 
-        public static void getawbnumber(out string waybillid, out string awbnumber)
+        public static void GetAWBnumber(out string waybillid, out string awbnumber)
         {
 
-            string mysqlconnectionstring = Environment.GetEnvironmentVariable("mysqlconnectionstring");
-            MySqlCommand cmd = new MySqlCommand();
-            MySqlConnection connection = new MySqlConnection(mysqlconnectionstring);
-            connection.Close();
-            connection.Open();
-            var command = connection.CreateCommand();
 
-            command.CommandText = "SELECT *,DATEDIFF(CURDATE(),insertdate) FROM waybillnumber WHERE isused = 0 AND DATEDIFF(CURDATE(),insertdate) < 90";
-            var reader = command.ExecuteNonQuery();
+            waybillid = string.Empty;
+            awbnumber = string.Empty;
+            var tbawbnumber = GetPreAllocatedAWB();
 
-            DataTable _dataTable = new DataTable();
-
-            var _da = new MySqlDataAdapter(command);
-            _da.Fill(_dataTable);
-            string fetchawbfuncurl = Environment.GetEnvironmentVariable("fetchawbfuncurl");
-
-            if (_dataTable.Rows.Count < 6)
+            if (tbawbnumber.Rows.Count < 6)
             {
-                using (var client = new HttpClient())
+
+                ECOM_GET_AWB();
+
+                var tbawbnumbernew = GetPreAllocatedAWB();
+
+                if (tbawbnumbernew.Rows.Count < 6)
                 {
-                    var result = client.GetAsync(fetchawbfuncurl).Result;
-                    if (result.IsSuccessStatusCode)
-                    {
-                        MySqlCommand cmd1 = new MySqlCommand();
-                        MySqlConnection connection1 = new MySqlConnection(mysqlconnectionstring);
-                        connection.Close();
-                        connection1.Open();
-                        var command1 = connection1.CreateCommand();
-
-                        command1.CommandText = "SELECT *,DATEDIFF(CURDATE(),insertdate) FROM waybillnumber WHERE isused = 0 AND DATEDIFF(CURDATE(),insertdate) < 90";
-                        var reader1 = command1.ExecuteNonQuery();
-
-                        DataTable _dataTable1 = new DataTable();
-
-                        var _da1 = new MySqlDataAdapter(command);
-                        _da1.Fill(_dataTable1);
-
-                        awbnumber =  _dataTable1.Rows[0]["awbnumber"].ToString();
-                        waybillid = _dataTable1.Rows[0]["waybillid"].ToString();
-
-                    }
-                
+                    string result = "error in fetching awb number";
                 }
+                else
+                {
+                    awbnumber = tbawbnumbernew.Rows[0]["awbnumber"].ToString();
+                    waybillid = tbawbnumbernew.Rows[0]["waybillid"].ToString();
 
                 }
 
-            awbnumber = _dataTable.Rows[0]["awbnumber"].ToString();
-            waybillid = _dataTable.Rows[0]["waybillid"].ToString();
+            }
+            else if (tbawbnumber.Rows.Count >= 6)
+            {
+                awbnumber = tbawbnumber.Rows[0]["awbnumber"].ToString();
+                waybillid = tbawbnumber.Rows[0]["waybillid"].ToString();
+
+            }
 
         }
 
-
         public static void updateawbstatus(string waybillid)
         {
-            string connetionString = Environment.GetEnvironmentVariable("mysqlconnectionstring");
+            //string connetionString = Environment.GetEnvironmentVariable("mysqlconnectionstring");
 
             MySqlConnection connection = null;
             try
             {
-                connection = new MySqlConnection(connetionString);
+                connection = new MySqlConnection(mysqlconnectionstring);
                 connection.Close();
                 connection.Open();
                 MySqlCommand cmd = new MySqlCommand();
                 cmd.Connection = connection;
-           
+
                 cmd.CommandText = "update waybillnumber set isused=@isused, updatedate =@updatedate where waybillid = @waybillid";
                 cmd.Prepare();
 
@@ -240,17 +221,17 @@ namespace re_platform_fapp_sales_return
             {
 
             }
-          
+
         }
 
         public static bool SAP_POST_SalesReturn(SapRequest sapRequest)
         {
 
             var sss = new StringBuilder("<?xml version='1.0' encoding='UTF-8'?>");
-            sss.Append("<ZBAPI_MGN_SALES_RETURN xmlns='http://Microsoft.LobServices.Sap/2007/03/Rfc/'><IT_TABLE1><ZSTR_MGN_SALES_RETURN_IT xmlns='http://Microsoft.LobServices.Sap/2007/03/Types/Rfc/'><MAGENTO_UNIQ_NO>"+ sapRequest.MAGENTO_UNIQ_NO + "</MAGENTO_UNIQ_NO><MAGENTO_ORDER_NO>"+ sapRequest.MAGENTO_ORDER_NO + "</MAGENTO_ORDER_NO><SAP_SALE_ORDER_NO>"+ sapRequest.SAP_SALE_ORDER_NO + "</SAP_SALE_ORDER_NO><SAP_INVOICE_NO>"+ sapRequest.SAP_INVOICE_NO+ "</SAP_INVOICE_NO></ZSTR_MGN_SALES_RETURN_IT></IT_TABLE1></ZBAPI_MGN_SALES_RETURN>");
+            sss.Append("<ZBAPI_MGN_SALES_RETURN xmlns='http://Microsoft.LobServices.Sap/2007/03/Rfc/'><IT_TABLE1><ZSTR_MGN_SALES_RETURN_IT xmlns='http://Microsoft.LobServices.Sap/2007/03/Types/Rfc/'><MAGENTO_UNIQ_NO>" + sapRequest.MAGENTO_UNIQ_NO + "</MAGENTO_UNIQ_NO><MAGENTO_ORDER_NO>" + sapRequest.MAGENTO_ORDER_NO + "</MAGENTO_ORDER_NO><SAP_SALE_ORDER_NO>" + sapRequest.SAP_SALE_ORDER_NO + "</SAP_SALE_ORDER_NO><SAP_INVOICE_NO>" + sapRequest.SAP_INVOICE_NO + "</SAP_INVOICE_NO></ZSTR_MGN_SALES_RETURN_IT></IT_TABLE1></ZBAPI_MGN_SALES_RETURN>");
 
 
-          var  lapp_salesreturnurl = Environment.GetEnvironmentVariable("lapp_salesreturnurl"); 
+            var lapp_salesreturnurl = Environment.GetEnvironmentVariable("lapp_salesreturnurl");
 
             var content = new StringContent(sss.ToString());
 
@@ -263,7 +244,7 @@ namespace re_platform_fapp_sales_return
                 return result.IsSuccessStatusCode ? true : false;
 
             }
-            }
+        }
 
 
         public static string ECOM_POST_ReverseManifest(RootObject rootObject)
@@ -273,7 +254,7 @@ namespace re_platform_fapp_sales_return
 
             var jsonserialize = JsonConvert.SerializeObject(rootObject);
 
-      string ecomapiusername = Environment.GetEnvironmentVariable("ecomapiusername");
+            string ecomapiusername = Environment.GetEnvironmentVariable("ecomapiusername");
             string ecomapipassword = Environment.GetEnvironmentVariable("ecomapipassword");
 
 
@@ -285,15 +266,100 @@ namespace re_platform_fapp_sales_return
         {new StringContent(System.Net.WebUtility.UrlEncode(ecomapiusername)),"username"},
         {new StringContent(System.Net.WebUtility.UrlEncode(ecomapipassword)),"password" },
          {new StringContent(jsonserialize),"json_input" }
-        
-    };
-                var result = client.PostAsync(ECOM_Reversemenifesturl,formContent).Result;
 
-            return    result.Content.ReadAsStringAsync().Result;
+    };
+                var result = client.PostAsync(ECOM_Reversemenifesturl, formContent).Result;
+
+                return result.Content.ReadAsStringAsync().Result;
             }
 
 
         }
 
+
+        public static DataTable GetPreAllocatedAWB()
+        {
+
+            // string mysqlconnectionstring = Environment.GetEnvironmentVariable("mysqlconnectionstring");
+            MySqlCommand cmd = new MySqlCommand();
+            MySqlConnection connection = new MySqlConnection(mysqlconnectionstring);
+            connection.Close();
+            connection.Open();
+            var command = connection.CreateCommand();
+
+            command.CommandText = "SELECT *,DATEDIFF(CURDATE(),insertdate) FROM waybillnumber WHERE isused = 0 AND DATEDIFF(CURDATE(),insertdate) < 90";
+            var reader = command.ExecuteNonQuery();
+
+            DataTable _dataTable = new DataTable();
+
+            var _da = new MySqlDataAdapter(command);
+            _da.Fill(_dataTable);
+
+            return _dataTable;
+
+        }
+
+        public static async void ECOM_GET_AWB()
+        {
+            MySqlConnection connection = null;
+            string awbnumber = string.Empty;
+            DateTime insertdate = DateTime.Now;
+            DateTime updatedate = DateTime.Now;
+            string ecomapiusername = Environment.GetEnvironmentVariable("ecomapiusername");
+            string ecomapipassword = Environment.GetEnvironmentVariable("ecomapipassword");
+            string count = Environment.GetEnvironmentVariable("count");
+            string fetchawburl = Environment.GetEnvironmentVariable("fetchawburl");
+            try
+            {
+                using (var client = new HttpClient())
+                {
+
+                    var formContent = new MultipartFormDataContent
+    {
+
+        {new StringContent(System.Net.WebUtility.UrlEncode(ecomapiusername)),"username"},
+        {new StringContent(System.Net.WebUtility.UrlEncode(ecomapipassword)),"password" },
+         {new StringContent(count),"count" },
+          {new StringContent("rev"),"type" },
+
+    };
+
+                    var result = client.PostAsync(fetchawburl, formContent).Result;
+                    MySqlCommand cmd = new MySqlCommand();
+                    var resultContent = await result.Content.ReadAsAsync<waybillresponse>();
+                    List<string> Rows = new List<string>();
+                    string currentdate = DateTime.Now.ToString("yyyy-MM-dd H:mm:ss");
+                    StringBuilder sCommand = new StringBuilder("INSERT INTO waybillnumber(awbnumber, isused, insertdate, updatedate, isdeleted,reference_id) VALUES ");
+                    for (int i = 0; i < resultContent.awb.Count; i++)
+                    {
+                        Rows.Add(string.Format("('{0}','{1}','{2}','{3}','{4}','{5}')", MySqlHelper.EscapeString(resultContent.awb[i].ToString()), MySqlHelper.EscapeString("0"), MySqlHelper.EscapeString(currentdate), MySqlHelper.EscapeString(currentdate), MySqlHelper.EscapeString("0"), MySqlHelper.EscapeString(resultContent.reference_id.ToString())));
+                    }
+                    sCommand.Append(string.Join(",", Rows));
+                    sCommand.Append(";");
+                    connection = new MySqlConnection(mysqlconnectionstring);
+                    connection.Open();
+                    cmd.Connection = connection;
+                    cmd.CommandText = sCommand.ToString();
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+
+            }
+            finally
+            {
+                if (connection != null)
+                    connection.Close();
+            }
+        }
+    }
+
+
+    public class waybillresponse
+    {
+        public int reference_id { get; set; }
+        public string success { get; set; }
+        public List<int> awb { get; set; }
     }
 }
