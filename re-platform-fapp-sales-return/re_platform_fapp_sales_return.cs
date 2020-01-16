@@ -38,34 +38,33 @@ namespace re_platform_fapp_sales_return
             try
             {
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                string connectionstring = Environment.GetEnvironmentVariable("connectionstring");
 
+                LogTable logTable = new LogTable();
+                TableManager.CreateTable(connectionstring, "", requestBody, "", "", "", "", "", "", "", "", "");
+                TableManager.CreateTable(connectionstring, "", requestBody, "", "", "", "", "", "", "", "", "");
                 var salesreturnrequestobj = JsonConvert.DeserializeObject<SalesReturnRequest>(requestBody);
-
                 log.LogInformation("get awb number.");
                 //fetch awb from mysql
                 string waybillid;
                 string awbnumber;
                 GetAWBnumber(out waybillid, out awbnumber);
-
                 log.LogInformation("after - get awb number.");
-
                 SapRequest saprequest = new SapRequest();
-
                 // sap request param
                 saprequest.MAGENTO_ORDER_NO = salesreturnrequestobj.MAGENTO_ORDER_NO;
                 saprequest.MAGENTO_UNIQ_NO = salesreturnrequestobj.MAGENTO_UNIQ_NO;
                 saprequest.SAP_INVOICE_NO = salesreturnrequestobj.SAP_INVOICE_NO;
                 saprequest.SAP_SALE_ORDER_NO = salesreturnrequestobj.SAP_SALE_ORDER_NO;
+                
+                
+                
                 // End sap request param
-
                 //ECOM request param
-
                 RootObject rootobj = new RootObject();
-
                 ECOMEXPRESSOBJECTS ECOMEXPRESSOBJECTS = new ECOMEXPRESSOBJECTS();
                 SHIPMENT SHIPMENT = new SHIPMENT();
                 ADDITIONALINFORMATION ADDITIONALINFORMATION = new ADDITIONALINFORMATION();
-
                 rootobj.ECOMEXPRESSOBJECTS = ECOMEXPRESSOBJECTS;
                 ECOMEXPRESSOBJECTS.SHIPMENT = SHIPMENT;
 
@@ -129,26 +128,18 @@ namespace re_platform_fapp_sales_return
                 SHIPMENT.DG_SHIPMENT = salesreturnrequestobj.DG_SHIPMENT;
 
                 //ECOM request param
-
                 log.LogInformation("sap post sales return.");
                 SAP_POST_SalesReturn(saprequest);
                 log.LogInformation("after sap post sales return.");
-
-
                 log.LogInformation("ECOM_POST_ReverseManifest.");
                 res = ECOM_POST_ReverseManifest(rootobj);
                 log.LogInformation(" after ECOM_POST_ReverseManifest.");
-
-
                 log.LogInformation(" update my sql isstatus.");
                 updateawbstatus(waybillid);
-
-
                 log.LogInformation(" after update my sql isstatus.");
             }
             catch (Exception ex)
             {
-
                 return new BadRequestObjectResult(ex.Message);
             }
 
@@ -160,8 +151,6 @@ namespace re_platform_fapp_sales_return
 
         public static void GetAWBnumber(out string waybillid, out string awbnumber)
         {
-
-
             waybillid = string.Empty;
             awbnumber = string.Empty;
             var tbawbnumber = GetPreAllocatedAWB();
@@ -246,7 +235,6 @@ namespace re_platform_fapp_sales_return
             }
         }
 
-
         public static string ECOM_POST_ReverseManifest(RootObject rootObject)
         {
 
@@ -256,8 +244,6 @@ namespace re_platform_fapp_sales_return
 
             string ecomapiusername = Environment.GetEnvironmentVariable("ecomapiusername");
             string ecomapipassword = Environment.GetEnvironmentVariable("ecomapipassword");
-
-
             using (var client = new HttpClient())
             {
                 var formContent = new MultipartFormDataContent
@@ -272,10 +258,7 @@ namespace re_platform_fapp_sales_return
 
                 return result.Content.ReadAsStringAsync().Result;
             }
-
-
         }
-
 
         public static DataTable GetPreAllocatedAWB()
         {
