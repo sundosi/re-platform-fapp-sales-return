@@ -1,9 +1,27 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace re_platform_fapp_sales_return
 {
+
+    public class Response
+    {
+        public bool success { get; set; }
+        public string msg { get; set; }
+     
+        public string sap_return_id { get; set; }
+        public string awb_no { get; set; }
+        public string carrier_name { get; set; }
+        public string carrier_code { get; set; }
+    }
+
+
+
+
+
     public class ADDITIONALINFORMATION
     {
         public object SELLER_TIN { get; set; }
@@ -72,6 +90,7 @@ namespace re_platform_fapp_sales_return
 
     public class RootObject
     {
+        [JsonProperty("ECOMEXPRESS-OBJECTS")]
         public ECOMEXPRESSOBJECTS ECOMEXPRESSOBJECTS { get; set; }
 }
 
@@ -88,6 +107,9 @@ namespace re_platform_fapp_sales_return
 
     public class SalesReturnRequest
     {
+
+
+        public string issuccess { get; set; }
         public string ORDER_NUMBER { get; set; }
         public string PRODUCT { get; set; }
         public string REVPICKUP_NAME { get; set; }

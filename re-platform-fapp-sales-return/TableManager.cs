@@ -92,7 +92,7 @@ namespace re_platform_fapp_sales_return
                 logtable.sapresponse = objlogTable.sapresponse;
                 logtable.AWBnumber = objlogTable.AWBnumber;
                 logtable.insertdate = DateTime.Now.ToString();
-                logtable.updatedate = updatedate;
+               // logtable.updatedate = updatedate;
                 logtable.status = objlogTable.status;
                 logtable.error = objlogTable.error;
                 logtable.status = objlogTable.status;
@@ -114,22 +114,22 @@ namespace re_platform_fapp_sales_return
                 throw ExceptionObj;
             }
         }
-        public static void GetTable(string connectionstring,)
-        {
+        //public static void GetTable(string connectionstring
+        //{
 
-            string _CloudTableName = "ReverseLogisticsLog";
-            CloudTable cloudTable;
-            string storageConnectionString = connectionstring;
-            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnectionString);
-            CloudTableClient tableClient = storageAccount.CreateCloudTableClient();
-            cloudTable = tableClient.GetTableReference(_CloudTableName);
-            var result = cloudTable.CreateIfNotExistsAsync().Result;
+        //    string _CloudTableName = "ReverseLogisticsLog";
+        //    CloudTable cloudTable;
+        //    string storageConnectionString = connectionstring;
+        //    CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnectionString);
+        //    CloudTableClient tableClient = storageAccount.CreateCloudTableClient();
+        //    cloudTable = tableClient.GetTableReference(_CloudTableName);
+        //    var result = cloudTable.CreateIfNotExistsAsync().Result;
 
-            var insertOperation = TableOperation.Insert(logtable);
-            var ss = cloudTable.ExecuteAsync(insertOperation).Result;
-            return ss.Result.ToString();
+        //    var insertOperation = TableOperation.Insert(logtable);
+        //    var ss = cloudTable.ExecuteAsync(insertOperation).Result;
+        //    return ss.Result.ToString();
 
-        }
+        //}
 
 
 
