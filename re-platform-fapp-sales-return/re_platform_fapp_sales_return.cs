@@ -30,31 +30,19 @@ namespace re_platform_fapp_sales_return
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-      
-
-
-            var a =   ECOM_GET_AWB_test(log).Result;
-
-
-            Response response = new Response();
-
-
+                  Response response = new Response();
             try
             {
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
                 string connectionstring = Environment.GetEnvironmentVariable("connectionstring");
-
-               // LogTable logTable = new LogTable();
-                //TableManager.CreateTable(connectionstring, "", requestBody, "", "", "", "", "", "", "", "", "");
-                //TableManager.CreateTable(connectionstring, "", requestBody, "", "", "", "", "", "", "", "", "");
                 var salesreturnrequestobj = JsonConvert.DeserializeObject<SalesReturnRequest>(requestBody);
-
+             
+                
+                //Temp Code
                 if (!string.IsNullOrEmpty(salesreturnrequestobj.issuccess))
                 {
                     var responsestring = ECOM_POST_ReverseManifest(salesreturnrequestobj);
-
                     var ecomres = JsonConvert.DeserializeObject<Ecom_Response>(responsestring);
-
                     Random generator = new Random();
                     String r = generator.Next(1, 999999).ToString("D5");
                     var tt = ecomres.RESPONSE_OBJECTS.AIRWAYBILL_OBJECTS.AIRWAYBILL.success;
@@ -74,9 +62,7 @@ namespace re_platform_fapp_sales_return
 
                 }
 
-
                 sapresponse sapres = SAP_POST_SalesReturn(salesreturnrequestobj);
-
                 if (sapres.MSG_TYP == "e")
                 {
                     response.success =false;
@@ -120,12 +106,9 @@ namespace re_platform_fapp_sales_return
                             Content = new StringContent(JsonConvert.SerializeObject(response), Encoding.UTF8, "application/json")
                         };
 
-
                 }
 
-               
-            
-            }
+                                      }
             catch (Exception ex)
             {
                 response.success = false;
@@ -145,69 +128,7 @@ namespace re_platform_fapp_sales_return
         }
 
 
-        public static void GetAWBnumber(out string waybillid, out string awbnumber)
-        {
-            waybillid = string.Empty;
-            awbnumber = string.Empty;
-            var tbawbnumber = GetPreAllocatedAWB();
 
-            if (tbawbnumber.Rows.Count < 6)
-            {
-
-                ECOM_GET_AWB();
-
-                var tbawbnumbernew = GetPreAllocatedAWB();
-
-                if (tbawbnumbernew.Rows.Count < 6)
-                {
-                    string result = "error in fetching awb number";
-                }
-                else
-                {
-                    awbnumber = tbawbnumbernew.Rows[0]["awbnumber"].ToString();
-                    waybillid = tbawbnumbernew.Rows[0]["waybillid"].ToString();
-
-                }
-
-            }
-            else if (tbawbnumber.Rows.Count >= 6)
-            {
-                awbnumber = tbawbnumber.Rows[0]["awbnumber"].ToString();
-                waybillid = tbawbnumber.Rows[0]["waybillid"].ToString();
-
-            }
-
-        }
-
-        public static void updateawbstatus(string waybillid)
-        {
-            //string connetionString = Environment.GetEnvironmentVariable("mysqlconnectionstring");
-
-            MySqlConnection connection = null;
-            try
-            {
-                connection = new MySqlConnection(mysqlconnectionstring);
-                connection.Close();
-                connection.Open();
-                MySqlCommand cmd = new MySqlCommand();
-                cmd.Connection = connection;
-
-                cmd.CommandText = "update waybillnumber set isused=@isused, updatedate =@updatedate where waybillid = @waybillid";
-                cmd.Prepare();
-
-                cmd.Parameters.AddWithValue("@waybillid", waybillid);
-                cmd.Parameters.AddWithValue("@isused", "1");
-                cmd.Parameters.AddWithValue("@updatedate", DateTime.Now);
-
-
-                cmd.ExecuteNonQuery();
-            }
-            catch (Exception ex)
-            {
-
-            }
-
-        }
 
         public static sapresponse SAP_POST_SalesReturn(SalesReturnRequest salesreturnrequestobj)
         {
@@ -389,90 +310,10 @@ namespace re_platform_fapp_sales_return
             }
         }
 
-        public static DataTable GetPreAllocatedAWB()
-        {
-
-            string mysqlconnectionstring = Environment.GetEnvironmentVariable("mysqlconnectionstring");
-            MySqlCommand cmd = new MySqlCommand();
-            MySqlConnection connection = new MySqlConnection(mysqlconnectionstring);
-            connection.Close();
-            connection.Open();
-            var command = connection.CreateCommand();
-
-            command.CommandText = "SELECT *,DATEDIFF(CURDATE(),insertdate) FROM waybillnumber WHERE isused = 0 AND DATEDIFF(CURDATE(),insertdate) < 90";
-            var reader = command.ExecuteNonQuery();
-
-            DataTable _dataTable = new DataTable();
-
-            var _da = new MySqlDataAdapter(command);
-            _da.Fill(_dataTable);
-
-            return _dataTable;
-
-        }
-
-        public static async void ECOM_GET_AWB()
-        {
-            MySqlConnection connection = null;
-            string awbnumber = string.Empty;
-            DateTime insertdate = DateTime.Now;
-            DateTime updatedate = DateTime.Now;
-            string ecomapiusername = Environment.GetEnvironmentVariable("ecomapiusername");
-            string ecomapipassword = Environment.GetEnvironmentVariable("ecomapipassword");
-            string count = Environment.GetEnvironmentVariable("count");
-            string fetchawburl = Environment.GetEnvironmentVariable("fetchawburl");
-            try
-            {
-                using (var client = new HttpClient())
-                {
-
-                    var formContent = new MultipartFormDataContent
-    {
-
-        {new StringContent(System.Net.WebUtility.UrlEncode(ecomapiusername)),"username"},
-        {new StringContent(System.Net.WebUtility.UrlEncode(ecomapipassword)),"password" },
-         {new StringContent(count),"count" },
-          {new StringContent("rev"),"type" },
-
-    };
-
-                    var result = client.PostAsync(fetchawburl, formContent).Result;
-                    MySqlCommand cmd = new MySqlCommand();
-                    var resultContent = await result.Content.ReadAsAsync<waybillresponse>();
-                    List<string> Rows = new List<string>();
-                    string currentdate = DateTime.Now.ToString("yyyy-MM-dd H:mm:ss");
-                    StringBuilder sCommand = new StringBuilder("INSERT INTO waybillnumber(awbnumber, isused, insertdate, updatedate, isdeleted,reference_id) VALUES ");
-                    for (int i = 0; i < resultContent.awb.Count; i++)
-                    {
-                        Rows.Add(string.Format("('{0}','{1}','{2}','{3}','{4}','{5}')", MySqlHelper.EscapeString(resultContent.awb[i].ToString()), MySqlHelper.EscapeString("0"), MySqlHelper.EscapeString(currentdate), MySqlHelper.EscapeString(currentdate), MySqlHelper.EscapeString("0"), MySqlHelper.EscapeString(resultContent.reference_id.ToString())));
-                    }
-                    sCommand.Append(string.Join(",", Rows));
-                    sCommand.Append(";");
-                    connection = new MySqlConnection(mysqlconnectionstring);
-                    connection.Open();
-                    cmd.Connection = connection;
-                    cmd.CommandText = sCommand.ToString();
-                    cmd.ExecuteNonQuery();
-                }
-            }
-            catch (Exception ex)
-            {
-
-            }
-            finally
-            {
-                if (connection != null)
-                    connection.Close();
-            }
-        }
-
-
         public static async Task<string> ECOM_GET_AWB_new()
         {
-           
-            string awbnumber = string.Empty;
-          
-            string ecomapiusername = Environment.GetEnvironmentVariable("ecomapiusername");
+                       string awbnumber = string.Empty;
+                      string ecomapiusername = Environment.GetEnvironmentVariable("ecomapiusername");
             string ecomapipassword = Environment.GetEnvironmentVariable("ecomapipassword");
             string count = Environment.GetEnvironmentVariable("count");
             string fetchawburl = Environment.GetEnvironmentVariable("fetchawburl");
@@ -508,63 +349,124 @@ namespace re_platform_fapp_sales_return
 
         public static async Task<string> ECOM_GET_AWB_test(ILogger log)
         {
-            log.LogInformation("test method");
-            string awbnumber = string.Empty;
 
-
-            //staging
-            //string ecomapiusername = "royalenfield16705_temp";
-            //string ecomapipassword = "7lEGpcnNJU7EuPFN";
-
-            //string fetchawburl = "https://clbeta.ecomexpress.in/apiv2/fetch_awb/";
-          
-
-            //live
-            string ecomapiusername = "eicher11423";
-            string ecomapipassword = "ech42mdsgh3h";
-        
-            string fetchawburl = "https://api.ecomexpress.in/apiv2/fetch_awb/";
-
-            string count = "1";
-            try
+            using (var client = new HttpClient())
             {
-                using (var client = new HttpClient())
-                {
 
-                    var formContent = new MultipartFormDataContent
-    {
+               
+                var result = client.GetAsync("https://testip20200430035740.azurewebsites.net/api/Function1").Result;
 
-        {new StringContent(System.Net.WebUtility.UrlEncode(ecomapiusername)),"username"},
-        {new StringContent(System.Net.WebUtility.UrlEncode(ecomapipassword)),"password" },
-         {new StringContent(count),"count" },
-          {new StringContent("rev"),"type" },
+                log.LogInformation(result.StatusCode.ToString());
 
-    };
+                MySqlCommand cmd = new MySqlCommand();
+                var resultContent = await result.Content.ReadAsStringAsync();
 
-                    var result = client.PostAsync(fetchawburl, formContent).Result;
+              //  log.LogInformation("live - AWB ");
+               log.LogInformation(resultContent);
+               // log.LogInformation(resultContent.awb[0].ToString());
 
-                    log.LogInformation(result.StatusCode.ToString());
+                //log.LogInformation("test method END");
+                //  return resultContent.awb[0].ToString();
 
-                    MySqlCommand cmd = new MySqlCommand();
-                    var resultContent = await result.Content.ReadAsAsync<waybillresponse>();
-
-                    log.LogInformation(resultContent.awb[0].ToString());
-
-                    log.LogInformation("test method END");
-                    return resultContent.awb[0].ToString();
-
-                }
             }
-            catch (Exception ex)
-            {
-                log.LogInformation(ex.Message);
-               // log.LogInformation("stack trace ===" + ex.StackTrace);
-                return "";
-            }
+
+            return "";
+
+
+
+
+
+
+            //        log.LogInformation("test method");
+            //        string awbnumber = string.Empty;
+
+
+
+
+            //        //live
+            //        string ecomapiusername = "eicher11423";
+            //        string ecomapipassword = "ech42mdsgh3h";
+
+            //        string fetchawburl = "https://api.ecomexpress.in/apiv2/fetch_awb/";
+
+            //        string count = "1";
+            //        try
+            //        {
+            //            using (var client = new HttpClient())
+            //            {
+
+            //                var formContent = new MultipartFormDataContent
+            //{
+
+            //    {new StringContent(System.Net.WebUtility.UrlEncode(ecomapiusername)),"username"},
+            //    {new StringContent(System.Net.WebUtility.UrlEncode(ecomapipassword)),"password" },
+            //     {new StringContent(count),"count" },
+            //      {new StringContent("rev"),"type" },
+
+            //};
+
+            //                var result = client.PostAsync(fetchawburl, formContent).Result;
+
+            //                log.LogInformation(result.StatusCode.ToString());
+
+            //                MySqlCommand cmd = new MySqlCommand();
+            //                var resultContent = await result.Content.ReadAsAsync<waybillresponse>();
+
+            //                log.LogInformation("live - AWB ");
+            //                log.LogInformation(resultContent.awb[0].ToString());
+
+            //                //log.LogInformation("test method END");
+            //              //  return resultContent.awb[0].ToString();
+
+            //            }
+
+
+
+
+            //            //staging
+            //            string ecomapiusername1 = "royalenfield16705_temp";
+            //            string ecomapipassword1 = "7lEGpcnNJU7EuPFN";
+
+            //            string fetchawburl1 = "https://clbeta.ecomexpress.in/apiv2/fetch_awb/";
+
+            //            using (var client1 = new HttpClient())
+            //            {
+
+            //                var formContent = new MultipartFormDataContent
+            //{
+
+            //    {new StringContent(System.Net.WebUtility.UrlEncode(ecomapiusername1)),"username"},
+            //    {new StringContent(System.Net.WebUtility.UrlEncode(ecomapipassword1)),"password" },
+            //     {new StringContent(count),"count" },
+            //      {new StringContent("rev"),"type" },
+
+            //};
+
+            //                var result1 = client1.PostAsync(fetchawburl1, formContent).Result;
+
+            //                log.LogInformation(result1.StatusCode.ToString());
+
+            //                MySqlCommand cmd = new MySqlCommand();
+            //                var resultContent1 = await result1.Content.ReadAsAsync<waybillresponse>();
+
+            //                log.LogInformation("Staging - AWB ");
+            //                log.LogInformation(resultContent1.awb[0].ToString());
+
+            //                log.LogInformation("test method END");
+            //                // return resultContent.awb[0].ToString();
+            //                return "";
+            //            }
+
+
+        //}
+        //    catch (Exception ex)
+        //    {
+        //        log.LogInformation(ex.Message);
+        //       // log.LogInformation("stack trace ===" + ex.StackTrace);
+        //        return "";
+        //    }
 
         }
-
-
     }
 
 
